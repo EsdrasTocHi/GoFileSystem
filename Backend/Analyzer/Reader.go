@@ -52,6 +52,31 @@ func MkDisk(params []string, w http.ResponseWriter) {
 	fs.MkDisk(size, unit, fit, path, w)
 }
 
+func RmDisk(params []string, w http.ResponseWriter) {
+	var path string = ""
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-path" {
+			path = Path(value, w)
+			if path == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if path == "" {
+		fs.WriteResponse(w, "$Error: PATH is a mandatory parameter")
+	}
+
+	fs.Rmdisk(path, w)
+}
+
 func ReadCommand(cmd string, w http.ResponseWriter) {
 	cmd = strings.Trim(cmd, " ")
 
@@ -61,6 +86,8 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 
 	if cmd == "mkdisk" {
 		MkDisk(params, w)
+	} else if cmd == "rmdisk" {
+		RmDisk(params, w)
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}
