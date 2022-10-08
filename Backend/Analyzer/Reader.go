@@ -2,9 +2,13 @@ package analyzer
 
 import (
 	fs "Backend/FileSystem"
+	structs "Backend/Structures"
 	"net/http"
 	"strings"
 )
+
+var number int = 0
+var mountedPartitions []structs.MountedPartition = make([]structs.MountedPartition, 0)
 
 func MkDisk(params []string, w http.ResponseWriter) {
 	var path string = ""
@@ -138,6 +142,40 @@ func FDisk(params []string, w http.ResponseWriter) {
 	fs.FDisk(size, unit, path, tyype, fit, nameOfPar, w)
 }
 
+func Mount(params []string, w http.ResponseWriter) {
+	var path string = ""
+	var nameOfPar string = ""
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-path" {
+			path = Path(value, w)
+			if path == "" {
+				return
+			}
+		} else if name == "-name" {
+			nameOfPar = Name(value, w)
+			if nameOfPar == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if path == "" {
+		fs.WriteResponse(w, "$Error: PATH is a mandatory parameter")
+	}
+	if nameOfPar == "" {
+		fs.WriteResponse(w, "$Error: NAME is a mandatory parameter")
+	}
+
+	fs.Mount(path, nameOfPar, &mountedPartitions, &number, w)
+}
+
 func ReadCommand(cmd string, w http.ResponseWriter) {
 	cmd = strings.Trim(cmd, " ")
 
@@ -151,6 +189,8 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 		RmDisk(params, w)
 	} else if cmd == "fdisk" {
 		FDisk(params, w)
+	} else if cmd == "mount" {
+		Mount(params, w)
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}
