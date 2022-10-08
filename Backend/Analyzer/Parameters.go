@@ -46,11 +46,50 @@ func UnitMkdisk(param string, w http.ResponseWriter) rune {
 	return 'e'
 }
 
+func UnitFdisk(param string, w http.ResponseWriter) rune {
+	param = strings.ToLower(param)
+
+	if param == "k" {
+		return 'k'
+	} else if param == "m" {
+		return 'm'
+	} else if param == "b" {
+		return 'b'
+	}
+
+	fs.WriteResponse(w, "$Error: UNIT value is not valid")
+	return 'e'
+}
+
+func Type(param string, w http.ResponseWriter) rune {
+	param = strings.ToLower(param)
+
+	if param == "p" {
+		return 'p'
+	} else if param == "e" {
+		return 'e'
+	} else if param == "l" {
+		return 'l'
+	}
+
+	fs.WriteResponse(w, "$Error: TYPE value is not valid")
+	return 'i'
+}
+
 func Path(param string, w http.ResponseWriter) string {
 	if param != "" {
 		return param
 	}
 
 	fs.WriteResponse(w, "$Error: PATH cannot be empty")
+	return ""
+}
+
+func Name(param string, w http.ResponseWriter) string {
+	if param != "" {
+		return param
+	}
+
+	fs.WriteResponse(w, "$Error: NAME cannot be empty")
 	return ""
 }

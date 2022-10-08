@@ -1,12 +1,12 @@
 package structures
 
-var SizeOfPartition int64 = 35
+var SizeOfEbr int64 = 42
 
-type Partition struct {
+type Ebr struct {
 	Part_status byte
-	Part_type   byte
 	Part_fit    byte
 	Part_start  [8]byte
 	Part_size   [8]byte
+	Part_next   [8]byte
 	Part_name   [16]byte
 }

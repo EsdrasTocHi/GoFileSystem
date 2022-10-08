@@ -12,10 +12,11 @@ import (
 
 func MkDisk(size int, unit rune, fit rune, path string, w http.ResponseWriter) {
 	if !Exist(path) {
+		var tam int64
 		if unit == 'k' {
-			size *= 1024
+			tam = int64(size * 1024)
 		} else {
-			size *= 1024 * 1024
+			tam = int64(size * 1024 * 1024)
 		}
 
 		file, err := os.Create(path)
@@ -40,7 +41,7 @@ func MkDisk(size int, unit rune, fit rune, path string, w http.ResponseWriter) {
 		mbr := structs.Mbr{}
 
 		copy(mbr.Mbr_fecha_creacion[:], []byte(getDate()))
-		binary.BigEndian.PutUint64(mbr.Mbr_tamano[:], uint64(size))
+		binary.BigEndian.PutUint64(mbr.Mbr_tamano[:], uint64(tam))
 		binary.BigEndian.PutUint64(mbr.Mbr_dsk_fit[:], uint64(fit))
 		binary.BigEndian.PutUint64(mbr.Mbr_dsk_signature[:], uint64(time.Now().UnixNano()))
 		mbr.Mbr_partition_1 = structs.Partition{}
@@ -50,13 +51,14 @@ func MkDisk(size int, unit rune, fit rune, path string, w http.ResponseWriter) {
 
 		file.Seek(0, os.SEEK_SET)
 
-		err = binary.Write(&buffer, binary.BigEndian, &mbr)
+		var buffer2 bytes.Buffer
+		err = binary.Write(&buffer2, binary.BigEndian, &mbr)
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
 
-		writeBinary(file, buffer.Bytes())
+		writeBinary(file, buffer2.Bytes())
 		WriteResponse(w, "DISK CREATED SUCCESFULLY!")
 		return
 	}
