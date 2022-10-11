@@ -176,6 +176,37 @@ func Mount(params []string, w http.ResponseWriter) {
 	fs.Mount(path, nameOfPar, &mountedPartitions, &number, w)
 }
 
+func Mkfs(params []string, w http.ResponseWriter) {
+	var id string = ""
+	var tyype bool = false
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-id" {
+			id = Id(value, w)
+			if id == "" {
+				return
+			}
+		} else if name == "-type" {
+			tyype = TypeMkfs(value, w)
+			if tyype == false {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if id == "" {
+		fs.WriteResponse(w, "$Error: ID is a mandatory parameter")
+	}
+
+	fs.Mkfs(id, &mountedPartitions, w)
+}
+
 func ReadCommand(cmd string, w http.ResponseWriter) {
 	cmd = strings.Trim(cmd, " ")
 
@@ -191,6 +222,8 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 		FDisk(params, w)
 	} else if cmd == "mount" {
 		Mount(params, w)
+	} else if cmd == "mkfs" {
+		Mkfs(params, w)
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}

@@ -93,3 +93,23 @@ func Name(param string, w http.ResponseWriter) string {
 	fs.WriteResponse(w, "$Error: NAME cannot be empty")
 	return ""
 }
+
+func TypeMkfs(param string, w http.ResponseWriter) bool {
+	param = strings.ToLower(param)
+
+	if param == "full" {
+		return true
+	}
+
+	fs.WriteResponse(w, "$Error: TYPE value is not valid")
+	return false
+}
+
+func Id(param string, w http.ResponseWriter) string {
+	if param != "" {
+		return param
+	}
+
+	fs.WriteResponse(w, "$Error: ID cannot be empty")
+	return ""
+}

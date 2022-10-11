@@ -62,6 +62,7 @@ func Mount(path string, nameString string, partitions *[]structs.MountedPartitio
 			newMount.Par = *par
 			newMount.IsLogic = false
 			newMount.Path = path
+			(*number)++
 			newMount.Id = "73" + strconv.Itoa(*number) + string(partitionNumber)
 
 			*partitions = append(*partitions, newMount)
@@ -130,6 +131,7 @@ func Mount(path string, nameString string, partitions *[]structs.MountedPartitio
 		newMount.LogicPar = logicPartitions[index]
 		newMount.IsLogic = true
 		newMount.Path = path
+		(*number)++
 		newMount.Id = "73" + strconv.Itoa(*number) + string(byte(64+numberOfPartitions))
 
 		file.Seek(ToInt(logicPartitions[index].Part_start[:]), os.SEEK_SET)
