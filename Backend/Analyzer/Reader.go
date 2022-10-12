@@ -9,6 +9,8 @@ import (
 
 var number int = 0
 var mountedPartitions []structs.MountedPartition = make([]structs.MountedPartition, 0)
+var activeSession bool = false
+var currentUser structs.Sesion
 
 func MkDisk(params []string, w http.ResponseWriter) {
 	var path string = ""
@@ -207,6 +209,49 @@ func Mkfs(params []string, w http.ResponseWriter) {
 	fs.Mkfs(id, &mountedPartitions, w)
 }
 
+func Login(params []string, w http.ResponseWriter) {
+	var id string = ""
+	usuario := ""
+	password := ""
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-id" {
+			id = Id(value, w)
+			if id == "" {
+				return
+			}
+		} else if name == "-usuario" {
+			usuario = Usuario(value, w)
+			if usuario == "" {
+				return
+			}
+		} else if name == "-password" {
+			password = Password(value, w)
+			if password == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if id == "" {
+		fs.WriteResponse(w, "$Error: ID is a mandatory parameter")
+	}
+	if usuario == "" {
+		fs.WriteResponse(w, "$Error: USUARIO is a mandatory parameter")
+	}
+	if password == "" {
+		fs.WriteResponse(w, "$Error: PASSWORD is a mandatory parameter")
+	}
+
+	fs.Login(usuario, password, id, &mountedPartitions, &currentUser, &activeSession, w)
+}
+
 func ReadCommand(cmd string, w http.ResponseWriter) {
 	cmd = strings.Trim(cmd, " ")
 
@@ -224,6 +269,10 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 		Mount(params, w)
 	} else if cmd == "mkfs" {
 		Mkfs(params, w)
+	} else if cmd == "login" {
+		Login(params, w)
+	} else if cmd == "logout" {
+		fs.Logout(&currentUser, &activeSession, w)
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}

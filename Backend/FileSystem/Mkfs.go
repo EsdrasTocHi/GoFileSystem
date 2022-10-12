@@ -20,7 +20,7 @@ func NewInode() structs.Inode {
 	for i := 0; i < 16; i++ {
 		inode.I_block[i] = -1
 	}
-	inode.I_type = '0'
+	inode.I_type = byte('0')
 	binary.BigEndian.PutUint64(inode.I_perm[:], 0)
 
 	return inode
@@ -42,21 +42,21 @@ func ext2(mountedPartition *structs.MountedPartition, w http.ResponseWriter) {
 	num_structures := math.Floor(float64((sizeOfPartition - structs.SizeOfSuperBlock) / (4 + structs.SizeOfInode + 3*64)))
 	num_blocks := 3 * num_structures
 
-	binary.BigEndian.PutUint64(sp.S_filesystem_type[:], 2)
+	binary.BigEndian.PutUint64(sp.S_filesystem_type[:], uint64(2))
 	binary.BigEndian.PutUint64(sp.S_inodes_count[:], uint64(num_structures))
 	binary.BigEndian.PutUint64(sp.S_blocks_count[:], uint64(num_blocks))
-	binary.BigEndian.PutUint64(sp.S_free_blocks_count[:], uint64(num_blocks)-2)
-	binary.BigEndian.PutUint64(sp.S_free_inodes_count[:], uint64(num_structures)-2)
+	binary.BigEndian.PutUint64(sp.S_free_blocks_count[:], uint64(num_blocks-2))
+	binary.BigEndian.PutUint64(sp.S_free_inodes_count[:], uint64(num_structures-2))
 	binary.BigEndian.PutUint64(sp.S_mnt_count[:], 0)
 	binary.BigEndian.PutUint64(sp.S_magic[:], 0xEF53)
-	binary.BigEndian.PutUint64(sp.S_inode_size[:], uint64(structs.SizeOfInode))
-	binary.BigEndian.PutUint64(sp.S_block_size[:], 64)
+	binary.BigEndian.PutUint64(sp.S_inode_size[:], uint64(binary.Size(structs.Inode{})))
+	binary.BigEndian.PutUint64(sp.S_block_size[:], uint64(binary.Size(structs.FileBlock{})))
 	binary.BigEndian.PutUint64(sp.S_first_ino[:], 2)
 	binary.BigEndian.PutUint64(sp.S_first_blo[:], 2)
-	binary.BigEndian.PutUint64(sp.S_bm_inode_start[:], uint64(start+structs.SizeOfSuperBlock))
+	binary.BigEndian.PutUint64(sp.S_bm_inode_start[:], uint64(start+int64(binary.Size(sp))))
 	binary.BigEndian.PutUint64(sp.S_bm_block_start[:], uint64(ToInt(sp.S_bm_inode_start[:])+int64(num_structures)))
 	binary.BigEndian.PutUint64(sp.S_inode_start[:], uint64(ToInt(sp.S_bm_block_start[:])+int64(num_blocks)))
-	binary.BigEndian.PutUint64(sp.S_block_start[:], uint64(ToInt(sp.S_inode_start[:])+int64(num_structures)*structs.SizeOfInode))
+	binary.BigEndian.PutUint64(sp.S_block_start[:], uint64(ToInt(sp.S_inode_start[:])+int64(num_structures)*int64(binary.Size(structs.Inode{}))))
 
 	file, _ := os.OpenFile(mountedPartition.Path, os.O_RDWR, 0777)
 	defer file.Close()
@@ -64,60 +64,61 @@ func ext2(mountedPartition *structs.MountedPartition, w http.ResponseWriter) {
 	var buffer bytes.Buffer
 	binary.Write(&buffer, binary.BigEndian, &sp)
 	writeBinary(file, buffer.Bytes())
-	buffer.Reset()
+	buffer = bytes.Buffer{}
 
-	binary.Write(&buffer, binary.BigEndian, '1')
+	binary.Write(&buffer, binary.BigEndian, byte('1'))
 	writeBinary(file, buffer.Bytes())
 	writeBinary(file, buffer.Bytes())
-	buffer.Reset()
-	binary.Write(&buffer, binary.BigEndian, '0')
+	buffer = bytes.Buffer{}
+
+	binary.Write(&buffer, binary.BigEndian, byte('0'))
 	for i := 2; i < int(num_structures); i++ {
 		writeBinary(file, buffer.Bytes())
 	}
-	buffer.Reset()
+	buffer = bytes.Buffer{}
 
-	binary.Write(&buffer, binary.BigEndian, '1')
+	binary.Write(&buffer, binary.BigEndian, byte('1'))
 	writeBinary(file, buffer.Bytes())
 	writeBinary(file, buffer.Bytes())
-	buffer.Reset()
-	binary.Write(&buffer, binary.BigEndian, '0')
+	buffer = bytes.Buffer{}
+	binary.Write(&buffer, binary.BigEndian, byte('0'))
 	for i := 2; i < int(num_blocks); i++ {
 		writeBinary(file, buffer.Bytes())
 	}
-	buffer.Reset()
+	buffer = bytes.Buffer{}
 
 	inode := NewInode()
-	inode.I_block[0] = 1
-	binary.BigEndian.PutUint64(inode.I_perm[:], 664)
+	inode.I_block[0] = 0
+	binary.BigEndian.PutUint64(inode.I_perm[:], uint64(664))
 
 	binary.Write(&buffer, binary.BigEndian, &inode)
 	writeBinary(file, buffer.Bytes())
-	buffer.Reset()
+	buffer = bytes.Buffer{}
 
 	inode = NewInode()
-	binary.BigEndian.PutUint64(inode.I_size[:], 27)
-	inode.I_block[0] = 2
-	inode.I_type = '1'
-	binary.BigEndian.PutUint64(inode.I_perm[:], 755)
+	binary.BigEndian.PutUint64(inode.I_size[:], uint64(27))
+	inode.I_block[0] = 1
+	inode.I_type = byte('1')
+	binary.BigEndian.PutUint64(inode.I_perm[:], uint64(755))
 	binary.Write(&buffer, binary.BigEndian, &inode)
 	writeBinary(file, buffer.Bytes())
-	buffer.Reset()
+	buffer = bytes.Buffer{}
 
 	var dirBlock structs.Dirblock
 	copy(dirBlock.B_content[0].B_name[:], ".")
-	binary.BigEndian.PutUint64(dirBlock.B_content[0].B_inodo[:], 1)
+	dirBlock.B_content[0].B_inodo = 0
 	copy(dirBlock.B_content[1].B_name[:], "..")
-	binary.BigEndian.PutUint64(dirBlock.B_content[1].B_inodo[:], 1)
+	dirBlock.B_content[1].B_inodo = 0
 	copy(dirBlock.B_content[2].B_name[:], "users.txt")
-	binary.BigEndian.PutUint64(dirBlock.B_content[2].B_inodo[:], 2)
+	dirBlock.B_content[2].B_inodo = 1
 
 	copy(dirBlock.B_content[3].B_name[:], "")
-	binary.BigEndian.PutUint64(dirBlock.B_content[3].B_inodo[:], 0)
+	dirBlock.B_content[3].B_inodo = -1
 
 	file.Seek(ToInt(sp.S_block_start[:]), os.SEEK_SET)
-	binary.Write(&buffer, binary.BigEndian, &inode)
+	binary.Write(&buffer, binary.BigEndian, &dirBlock)
 	writeBinary(file, buffer.Bytes())
-	buffer.Reset()
+	buffer = bytes.Buffer{}
 
 	var fileBlock structs.FileBlock
 	copy(fileBlock.B_content[:], "1,G,root\n1,U,root,root,123\n")

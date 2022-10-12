@@ -113,3 +113,21 @@ func Id(param string, w http.ResponseWriter) string {
 	fs.WriteResponse(w, "$Error: ID cannot be empty")
 	return ""
 }
+
+func Usuario(param string, w http.ResponseWriter) string {
+	if param != "" {
+		return param
+	}
+
+	fs.WriteResponse(w, "$Error: USUARIO cannot be empty")
+	return ""
+}
+
+func Password(param string, w http.ResponseWriter) string {
+	if param != "" {
+		return param
+	}
+
+	fs.WriteResponse(w, "$Error: PASSWORD cannot be empty")
+	return ""
+}
