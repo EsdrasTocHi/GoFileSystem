@@ -252,6 +252,74 @@ func Login(params []string, w http.ResponseWriter) {
 	fs.Login(usuario, password, id, &mountedPartitions, &currentUser, &activeSession, w)
 }
 
+func Mkgrp(params []string, w http.ResponseWriter) {
+	var id string = ""
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-name" {
+			id = Name(value, w)
+			if id == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if id == "" {
+		fs.WriteResponse(w, "$Error: NAME is a mandatory parameter")
+	}
+
+	fs.Mkgrp(id, &currentUser, &activeSession, w)
+}
+
+func Mkusr(params []string, w http.ResponseWriter) {
+	var grp string = ""
+	usuario := ""
+	password := ""
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-grp" {
+			grp = Grp(value, w)
+			if grp == "" {
+				return
+			}
+		} else if name == "-usuario" {
+			usuario = Usuario(value, w)
+			if usuario == "" {
+				return
+			}
+		} else if name == "-pwd" {
+			password = Password(value, w)
+			if password == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if grp == "" {
+		fs.WriteResponse(w, "$Error: GRP is a mandatory parameter")
+	}
+	if usuario == "" {
+		fs.WriteResponse(w, "$Error: USUARIO is a mandatory parameter")
+	}
+	if password == "" {
+		fs.WriteResponse(w, "$Error: PASSWORD is a mandatory parameter")
+	}
+
+	fs.Mkusr(usuario, password, grp, &currentUser, &activeSession, w)
+}
+
 func ReadCommand(cmd string, w http.ResponseWriter) {
 	cmd = strings.Trim(cmd, " ")
 
@@ -273,6 +341,10 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 		Login(params, w)
 	} else if cmd == "logout" {
 		fs.Logout(&currentUser, &activeSession, w)
+	} else if cmd == "mkgrp" {
+		Mkgrp(params, w)
+	} else if cmd == "mkusr" {
+		Mkusr(params, w)
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}

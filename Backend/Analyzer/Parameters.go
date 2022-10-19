@@ -131,3 +131,12 @@ func Password(param string, w http.ResponseWriter) string {
 	fs.WriteResponse(w, "$Error: PASSWORD cannot be empty")
 	return ""
 }
+
+func Grp(param string, w http.ResponseWriter) string {
+	if param != "" {
+		return param
+	}
+
+	fs.WriteResponse(w, "$Error: GRP cannot be empty")
+	return ""
+}

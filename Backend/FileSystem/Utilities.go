@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -95,6 +97,11 @@ func ReadSuperBlock(ebr *structs.SuperBlock, file *os.File) {
 	binary.Read(buffer, binary.BigEndian, ebr)
 }
 
+func ReadByte(ebr *byte, file *os.File) {
+	buffer := bytes.NewBuffer(readNextBytes(file, int64(binary.Size(*ebr))))
+	binary.Read(buffer, binary.BigEndian, ebr)
+}
+
 func ToInt(data []byte) int64 {
 	res := binary.BigEndian.Uint64(data)
 
@@ -163,6 +170,7 @@ func ReadInFileBLocks(pointer int64, file *os.File, istart int64, bstart int64) 
 	file.Seek(pointer, os.SEEK_SET)
 	ReadFileBlock(&fileBlock, file)
 	res += ToString(fileBlock.B_content[:])
+
 	return res
 }
 
@@ -220,4 +228,309 @@ func IsUser(line string) bool {
 	}
 
 	return counter == 4
+}
+
+func CountGroups(c string) int {
+	content := GetLines(c)
+	counter := 0
+
+	for i := 0; i < len(content); i++ {
+		if !IsUser(content[i]) {
+			counter++
+		}
+	}
+
+	return counter
+}
+
+func CountUsers(c string) int {
+	content := GetLines(c)
+	counter := 0
+
+	for i := 0; i < len(content); i++ {
+		if IsUser(content[i]) {
+			counter++
+		}
+	}
+
+	return counter
+}
+
+func ExistGroup(name string, c string) bool {
+	content := GetLines(c)
+	for i := 0; i < len(content); i++ {
+		if !IsUser(content[i]) {
+			nameGroup := ""
+			aux := ""
+			counter := 0
+			for j := 0; j < len(content[i]); j++ {
+				if content[i][j] == ',' || j == len(content[i])-1 {
+					if counter == 2 {
+						aux += string(content[i][j])
+						nameGroup = aux
+					}
+					aux = ""
+					counter++
+					continue
+				}
+				aux += string(content[i][j])
+			}
+
+			if nameGroup == name && content[i][0] != '0' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func ExistUser(name string, c string) bool {
+	content := GetLines(c)
+	for i := 0; i < len(content); i++ {
+		if !IsUser(content[i]) {
+			nameGroup := ""
+			aux := ""
+			counter := 0
+			for j := 0; j < len(content[i]); j++ {
+				if content[i][j] == ',' {
+					if counter == 3 {
+						nameGroup = aux
+					}
+					aux = ""
+					counter++
+					continue
+				}
+				aux += string(content[i][j])
+			}
+
+			if nameGroup == name && content[i][0] != '0' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func GetGroupId(name string, c string) int {
+	content := GetLines(c)
+	for i := 0; i < len(content); i++ {
+		if !IsUser(content[i]) {
+			nameGroup := ""
+			aux := ""
+			counter := 0
+			id := 0
+			for j := 0; j < len(content[i]); j++ {
+				if content[i][j] == ',' || j == len(content[i])-1 {
+					if counter == 2 {
+						aux += string(content[i][j])
+						nameGroup = aux
+					} else if counter == 0 {
+						id, _ = strconv.Atoi(aux)
+					}
+					aux = ""
+					counter++
+					continue
+				}
+				aux += string(content[i][j])
+			}
+
+			if nameGroup == name && content[i][0] != '0' {
+				return id
+			}
+		}
+	}
+	return -1
+}
+
+func SeparateContent(content *string) string {
+	res := ""
+	aux := ""
+	for i := 0; i < len(*content); i++ {
+		if i < 64 {
+			res += string((*content)[i])
+			continue
+		}
+
+		aux += string((*content)[i])
+	}
+
+	*content = aux
+	return res
+}
+
+func RoundToNext(number float64) int {
+	r := math.Trunc(number)
+	if number-r > 0 {
+		return int(r + 1)
+	}
+
+	return int(r)
+}
+
+func GetStartOfFreeBlocks(oldContent string, newContent string, file *os.File, fit rune, sp structs.SuperBlock, w http.ResponseWriter) int64 {
+	finalContent := oldContent + newContent
+	blocksNeeded := RoundToNext(float64(len(finalContent))/64) - RoundToNext(float64(len(oldContent))/64)
+
+	if ToInt(sp.S_free_blocks_count[:]) < int64(blocksNeeded) {
+		WriteResponse(w, "$Error: no space available")
+		return -1
+	}
+
+	availableSpace := make([]int64, 0)
+	firstBlock := make([]int64, 0)
+
+	var b byte
+	state := 0
+	counter := 0
+	for i := ToInt(sp.S_bm_block_start[:]); i < ToInt(sp.S_blocks_count[:])+ToInt(sp.S_bm_block_start[:]); i++ {
+		file.Seek(i, os.SEEK_SET)
+		ReadByte(&b, file)
+		switch state {
+		case 0:
+			if b == '0' {
+				counter++
+				state = 1
+			}
+			break
+		case 1:
+			if b == '0' {
+				counter++
+
+				if i == ToInt(sp.S_blocks_count[:])+ToInt(sp.S_bm_block_start[:])-1 {
+					availableSpace = append(availableSpace, int64(counter))
+					firstBlock = append(firstBlock, i)
+				}
+			} else {
+				state = 0
+				availableSpace = append(availableSpace, int64(counter))
+				firstBlock = append(firstBlock, i)
+				counter = 0
+			}
+			break
+		}
+	}
+
+	index := -1
+	actualAvailable := int64(0)
+	if fit == 'w' {
+		for i := 0; i < len(availableSpace); i++ {
+			if availableSpace[i] >= int64(blocksNeeded) && availableSpace[i] > int64(actualAvailable) {
+				actualAvailable = availableSpace[i]
+				index = i
+			}
+		}
+	} else if fit == 'b' {
+		for i := 0; i < len(availableSpace); i++ {
+			if availableSpace[i] >= int64(blocksNeeded) && availableSpace[i] < int64(actualAvailable) {
+				actualAvailable = availableSpace[i]
+				index = i
+			}
+		}
+	} else {
+		for i := 0; i < len(availableSpace); i++ {
+			if availableSpace[i] >= int64(blocksNeeded) {
+				index = i
+				break
+			}
+		}
+	}
+
+	if index == -1 {
+		WriteResponse(w, "$Error: no space available")
+		return -1
+	}
+
+	return firstBlock[index]
+}
+
+func GetFreeBlock(sp structs.SuperBlock, file *os.File, block int64) int64 {
+	file.Seek(ToInt(sp.S_bm_block_start[:])+block, os.SEEK_SET)
+
+	var buffer bytes.Buffer
+	binary.Write(&buffer, binary.BigEndian, '1')
+	writeBinary(file, buffer.Bytes())
+
+	return ToInt(sp.S_bm_block_start[:]) + block
+}
+
+func GetFreeInode(sp structs.SuperBlock, file *os.File) int64 {
+	file.Seek(ToInt(sp.S_bm_inode_start[:]), os.SEEK_SET)
+	var c byte
+	counter := int64(0)
+
+	for i := 0; i < int(ToInt(sp.S_inodes_count[:])+ToInt(sp.S_bm_inode_start[:])); i++ {
+		ReadByte(&c, file)
+		if c == '0' {
+			c = '1'
+			file.Seek(int64(i), os.SEEK_SET)
+			var buffer bytes.Buffer
+			binary.Write(&buffer, binary.BigEndian, &c)
+			writeBinary(file, buffer.Bytes())
+			return counter
+		}
+		counter++
+	}
+
+	return -1
+}
+
+func WriteInContentBlock(content string, pointer int64, file *os.File, sp structs.SuperBlock, freeBlocks *int64, w http.ResponseWriter) int64 {
+	p := pointer
+	newBlock := false
+
+	if pointer == -1 {
+		p = GetFreeBlock(sp, file, *freeBlocks)
+		if p == -1 {
+			WriteResponse(w, "$Error: no blocks available")
+			return -1
+		}
+		(*freeBlocks)--
+		newBlock = true
+	}
+
+	var fb structs.FileBlock
+	copy(fb.B_content[:], []byte(content))
+	file.Seek(ToInt(sp.S_block_start[:])+(p*64), os.SEEK_SET)
+	var buffer bytes.Buffer
+	binary.Write(&buffer, binary.BigEndian, &fb)
+	writeBinary(file, buffer.Bytes())
+
+	if newBlock {
+		return p
+	}
+
+	return -2
+}
+
+func WriteInFile(sp structs.SuperBlock, f *structs.Inode, content string, file *os.File, pointerInode int64, freeBlocks *int64, w http.ResponseWriter) bool {
+	for i := 0; i < 15; i++ {
+		if content == "" {
+			WriteInContentBlock(content, f.I_block[i], file, sp, freeBlocks, w)
+			f.I_block[i] = -1
+			copy(f.I_mtime[:], []byte(getDate()))
+
+			file.Seek(ToInt(sp.S_inode_start[:])+(pointerInode*int64(binary.Size(*f))), os.SEEK_SET)
+			var buffer bytes.Buffer
+			binary.Write(&buffer, binary.BigEndian, &f)
+			writeBinary(file, buffer.Bytes())
+			continue
+		}
+
+		response := WriteInContentBlock(SeparateContent(&content), f.I_block[i], file, sp, freeBlocks, w)
+
+		if response == -1 {
+			return false
+		} else if response == -2 {
+			continue
+		}
+
+		f.I_block[i] = response
+		copy(f.I_mtime[:], []byte(getDate()))
+
+		file.Seek(ToInt(sp.S_inode_start[:])+(pointerInode*int64(binary.Size(*f))), os.SEEK_SET)
+		var buffer bytes.Buffer
+		binary.Write(&buffer, binary.BigEndian, &f)
+		writeBinary(file, buffer.Bytes())
+	}
+	return true
 }
