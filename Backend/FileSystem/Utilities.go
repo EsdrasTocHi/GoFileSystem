@@ -287,7 +287,7 @@ func ExistGroup(name string, c string) bool {
 func ExistUser(name string, c string) bool {
 	content := GetLines(c)
 	for i := 0; i < len(content); i++ {
-		if !IsUser(content[i]) {
+		if IsUser(content[i]) {
 			nameGroup := ""
 			aux := ""
 			counter := 0
@@ -358,19 +358,18 @@ func SeparateContent(content *string) string {
 	return res
 }
 
-func RoundToNext(number float64) int {
+func RoundToNext(number float64) int64 {
 	r := math.Trunc(number)
 	if number-r > 0 {
-		return int(r + 1)
+		return int64(r + 1)
 	}
 
-	return int(r)
+	return int64(r)
 }
 
 func GetStartOfFreeBlocks(oldContent string, newContent string, file *os.File, fit rune, sp structs.SuperBlock, w http.ResponseWriter) int64 {
 	finalContent := oldContent + newContent
-	blocksNeeded := RoundToNext(float64(len(finalContent))/64) - RoundToNext(float64(len(oldContent))/64)
-
+	blocksNeeded := RoundToNext(float64(len(finalContent)/64)) - RoundToNext(float64(len(oldContent)/64))
 	if ToInt(sp.S_free_blocks_count[:]) < int64(blocksNeeded) {
 		WriteResponse(w, "$Error: no space available")
 		return -1
@@ -390,6 +389,7 @@ func GetStartOfFreeBlocks(oldContent string, newContent string, file *os.File, f
 			if b == '0' {
 				counter++
 				state = 1
+				firstBlock = append(firstBlock, i)
 			}
 			break
 		case 1:
@@ -398,12 +398,10 @@ func GetStartOfFreeBlocks(oldContent string, newContent string, file *os.File, f
 
 				if i == ToInt(sp.S_blocks_count[:])+ToInt(sp.S_bm_block_start[:])-1 {
 					availableSpace = append(availableSpace, int64(counter))
-					firstBlock = append(firstBlock, i)
 				}
 			} else {
 				state = 0
 				availableSpace = append(availableSpace, int64(counter))
-				firstBlock = append(firstBlock, i)
 				counter = 0
 			}
 			break
@@ -443,14 +441,89 @@ func GetStartOfFreeBlocks(oldContent string, newContent string, file *os.File, f
 	return firstBlock[index]
 }
 
-func GetFreeBlock(sp structs.SuperBlock, file *os.File, block int64) int64 {
-	file.Seek(ToInt(sp.S_bm_block_start[:])+block, os.SEEK_SET)
+func GetStartOfFreeBlocks2(oldContent string, newContent string, file *os.File, fit rune, sp structs.SuperBlock, w http.ResponseWriter) int64 {
+	blocksNeeded := RoundToNext(float64(len(newContent)/64)) - RoundToNext(float64(len(oldContent)/64))
+	if ToInt(sp.S_free_blocks_count[:]) < int64(blocksNeeded) {
+		WriteResponse(w, "$Error: no space available")
+		return -1
+	}
+
+	availableSpace := make([]int64, 0)
+	firstBlock := make([]int64, 0)
+
+	var b byte
+	state := 0
+	counter := 0
+	for i := ToInt(sp.S_bm_block_start[:]); i < ToInt(sp.S_blocks_count[:])+ToInt(sp.S_bm_block_start[:]); i++ {
+		file.Seek(i, os.SEEK_SET)
+		ReadByte(&b, file)
+		switch state {
+		case 0:
+			if b == '0' {
+				counter++
+				state = 1
+				firstBlock = append(firstBlock, i)
+			}
+			break
+		case 1:
+			if b == '0' {
+				counter++
+
+				if i == ToInt(sp.S_blocks_count[:])+ToInt(sp.S_bm_block_start[:])-1 {
+					availableSpace = append(availableSpace, int64(counter))
+				}
+			} else {
+				state = 0
+				availableSpace = append(availableSpace, int64(counter))
+				counter = 0
+			}
+			break
+		}
+	}
+
+	index := -1
+	actualAvailable := int64(0)
+	if fit == 'w' {
+		for i := 0; i < len(availableSpace); i++ {
+			if availableSpace[i] >= int64(blocksNeeded) && availableSpace[i] > int64(actualAvailable) {
+				actualAvailable = availableSpace[i]
+				index = i
+			}
+		}
+	} else if fit == 'b' {
+		for i := 0; i < len(availableSpace); i++ {
+			if availableSpace[i] >= int64(blocksNeeded) && availableSpace[i] < int64(actualAvailable) {
+				actualAvailable = availableSpace[i]
+				index = i
+			}
+		}
+	} else {
+		for i := 0; i < len(availableSpace); i++ {
+			if availableSpace[i] >= int64(blocksNeeded) {
+				index = i
+				break
+			}
+		}
+	}
+
+	if index == -1 {
+		WriteResponse(w, "$Error: no space available")
+		return -1
+	}
+
+	return firstBlock[index]
+}
+
+func GetFreeBlock(sp structs.SuperBlock, file *os.File, block int64, createdBlocks *int64) int64 {
+	file.Seek(block, os.SEEK_SET)
 
 	var buffer bytes.Buffer
 	binary.Write(&buffer, binary.BigEndian, '1')
 	writeBinary(file, buffer.Bytes())
 
-	return ToInt(sp.S_bm_block_start[:]) + block
+	(*createdBlocks)++
+
+	return block - ToInt(sp.S_bm_block_start[:])
 }
 
 func GetFreeInode(sp structs.SuperBlock, file *os.File) int64 {
@@ -474,17 +547,13 @@ func GetFreeInode(sp structs.SuperBlock, file *os.File) int64 {
 	return -1
 }
 
-func WriteInContentBlock(content string, pointer int64, file *os.File, sp structs.SuperBlock, freeBlocks *int64, w http.ResponseWriter) int64 {
+func WriteInContentBlock(content string, pointer int64, file *os.File, sp structs.SuperBlock, freeBlocks *int64, createdBlocks *int64, w http.ResponseWriter) int64 {
 	p := pointer
 	newBlock := false
 
 	if pointer == -1 {
-		p = GetFreeBlock(sp, file, *freeBlocks)
-		if p == -1 {
-			WriteResponse(w, "$Error: no blocks available")
-			return -1
-		}
-		(*freeBlocks)--
+		p = GetFreeBlock(sp, file, *freeBlocks, createdBlocks)
+		(*freeBlocks)++
 		newBlock = true
 	}
 
@@ -502,10 +571,9 @@ func WriteInContentBlock(content string, pointer int64, file *os.File, sp struct
 	return -2
 }
 
-func WriteInFile(sp structs.SuperBlock, f *structs.Inode, content string, file *os.File, pointerInode int64, freeBlocks *int64, w http.ResponseWriter) bool {
-	for i := 0; i < 15; i++ {
+func WriteInFile(sp structs.SuperBlock, f *structs.Inode, content string, file *os.File, pointerInode int64, freeBlocks *int64, createdBlocks *int64, w http.ResponseWriter) bool {
+	for i := 0; i < 16; i++ {
 		if content == "" {
-			WriteInContentBlock(content, f.I_block[i], file, sp, freeBlocks, w)
 			f.I_block[i] = -1
 			copy(f.I_mtime[:], []byte(getDate()))
 
@@ -516,7 +584,7 @@ func WriteInFile(sp structs.SuperBlock, f *structs.Inode, content string, file *
 			continue
 		}
 
-		response := WriteInContentBlock(SeparateContent(&content), f.I_block[i], file, sp, freeBlocks, w)
+		response := WriteInContentBlock(SeparateContent(&content), f.I_block[i], file, sp, freeBlocks, createdBlocks, w)
 
 		if response == -1 {
 			return false

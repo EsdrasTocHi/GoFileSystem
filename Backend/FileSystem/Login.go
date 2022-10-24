@@ -48,6 +48,9 @@ func Authenticate(usr string, passw string, currentUser *structs.Sesion, content
 						WriteResponse(w, "$Error: user does not exist")
 						return false
 					}
+
+					currentUser.Usr = structs.User{}
+
 					copy(currentUser.Usr.Group[:], []byte(group))
 					currentUser.Usr.Id = int64(id)
 					copy(currentUser.Usr.Name[:], []byte(user))

@@ -320,6 +320,56 @@ func Mkusr(params []string, w http.ResponseWriter) {
 	fs.Mkusr(usuario, password, grp, &currentUser, &activeSession, w)
 }
 
+func Rmgrp(params []string, w http.ResponseWriter) {
+	var id string = ""
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-name" {
+			id = Name(value, w)
+			if id == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if id == "" {
+		fs.WriteResponse(w, "$Error: NAME is a mandatory parameter")
+	}
+
+	fs.Rmgrp(id, &currentUser, &activeSession, w)
+}
+
+func Rmusr(params []string, w http.ResponseWriter) {
+	var id string = ""
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-usuario" {
+			id = Usuario(value, w)
+			if id == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if id == "" {
+		fs.WriteResponse(w, "$Error: USUARIO is a mandatory parameter")
+	}
+
+	fs.Rmusr(id, &currentUser, &activeSession, w)
+}
+
 func ReadCommand(cmd string, w http.ResponseWriter) {
 	cmd = strings.Trim(cmd, " ")
 
@@ -345,6 +395,10 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 		Mkgrp(params, w)
 	} else if cmd == "mkusr" {
 		Mkusr(params, w)
+	} else if cmd == "rmusr" {
+		Rmusr(params, w)
+	} else if cmd == "rmgrp" {
+		Rmgrp(params, w)
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}

@@ -72,14 +72,14 @@ func Mkgrp(name string, currentUser *structs.Sesion, activeSession *bool, w http
 	newGroup := strconv.Itoa(id) + ",G," + name + "\n"
 
 	freeBlocks := GetStartOfFreeBlocks(content, newGroup, file, rune(fit), sp, w)
-	createdBlocks := freeBlocks
+	createdBlocks := int64(0)
 	if freeBlocks == -1 {
 		return
 	}
 
 	content += newGroup
 	newSize := len(content)
-	if WriteInFile(sp, &root, content, file, int64(pointerOfFile), &freeBlocks, w) {
+	if WriteInFile(sp, &root, content, file, int64(pointerOfFile), &freeBlocks, &createdBlocks, w) {
 		binary.BigEndian.PutUint64(sp.S_free_blocks_count[:], uint64(ToInt(sp.S_free_blocks_count[:])-createdBlocks))
 		file.Seek(start, os.SEEK_SET)
 		var buffer bytes.Buffer
