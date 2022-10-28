@@ -106,7 +106,7 @@ func Login(usr string, passw string, id string, partitions *[]structs.MountedPar
 	file.Seek(ToInt(sp.S_inode_start[:]), os.SEEK_SET)
 	ReadInode(&root, file)
 
-	p := 0
+	p := int64(0)
 	root = SearchFile(file, root, SplithPath("users.txt"), ToInt(sp.S_inode_start[:]), ToInt(sp.S_block_start[:]), &p)
 
 	if root.I_type == 'n' {

@@ -140,3 +140,12 @@ func Grp(param string, w http.ResponseWriter) string {
 	fs.WriteResponse(w, "$Error: GRP cannot be empty")
 	return ""
 }
+
+func Cont(param string, w http.ResponseWriter) string {
+	if param != "" {
+		return param
+	}
+
+	fs.WriteResponse(w, "$Error: CONT cannot be empty")
+	return ""
+}

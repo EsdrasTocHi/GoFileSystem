@@ -370,6 +370,97 @@ func Rmusr(params []string, w http.ResponseWriter) {
 	fs.Rmusr(id, &currentUser, &activeSession, w)
 }
 
+func Mkfile(params []string, w http.ResponseWriter) {
+	var path string = ""
+	cont := ""
+	s := -1
+	r := false
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		if name == "-r" {
+			r = true
+			continue
+		}
+		value := param[1]
+		if name == "-size" {
+			s = Size(value, w)
+			if s == -1 {
+				return
+			}
+		} else if name == "-path" {
+			path = Path(value, w)
+			if path == "" {
+				return
+			}
+		} else if name == "-cont" {
+			cont = Cont(value, w)
+			if cont == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if path == "" {
+		fs.WriteResponse(w, "$Error: PATH is a mandatory parameter")
+	}
+
+	fs.Mkfile(path, r, int64(s), cont, currentUser, activeSession, 664, w)
+}
+
+func Rep(params []string, w http.ResponseWriter) {
+	var id string = ""
+	n := ""
+	path := ""
+	ruta := ""
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		value := param[1]
+		if name == "-id" {
+			id = Id(value, w)
+			if id == "" {
+				return
+			}
+		} else if name == "-name" {
+			n = Name(value, w)
+			if n == "" {
+				return
+			}
+		} else if name == "-path" {
+			path = Path(value, w)
+			if path == "" {
+				return
+			}
+		} else if name == "-ruta" {
+			ruta = Name(value, w)
+			if ruta == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if id == "" {
+		fs.WriteResponse(w, "$Error: ID is a mandatory parameter")
+	}
+	if n == "" {
+		fs.WriteResponse(w, "$Error: NAME is a mandatory parameter")
+	}
+	if path == "" {
+		fs.WriteResponse(w, "$Error: PATH is a mandatory parameter")
+	}
+
+	fs.Report(id, n, path, &mountedPartitions, ruta, currentUser, w)
+}
+
 func ReadCommand(cmd string, w http.ResponseWriter) {
 	cmd = strings.Trim(cmd, " ")
 
@@ -399,6 +490,10 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 		Rmusr(params, w)
 	} else if cmd == "rmgrp" {
 		Rmgrp(params, w)
+	} else if cmd == "mkfile" {
+		Mkfile(params, w)
+	} else if cmd == "rep" {
+		Rep(params, w)
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}

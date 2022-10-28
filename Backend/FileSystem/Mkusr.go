@@ -53,7 +53,7 @@ func Mkusr(name string, pass string, group string, currentUser *structs.Sesion, 
 	file.Seek(ToInt(sp.S_inode_start[:]), os.SEEK_SET)
 	ReadInode(&root, file)
 
-	pointerOfFile := 0
+	pointerOfFile := int64(0)
 
 	root = SearchFile(file, root, SplithPath("users.txt"), ToInt(sp.S_inode_start[:]), ToInt(sp.S_block_start[:]), &pointerOfFile)
 

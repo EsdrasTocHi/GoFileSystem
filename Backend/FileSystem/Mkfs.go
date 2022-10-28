@@ -121,7 +121,7 @@ func ext2(mountedPartition *structs.MountedPartition, w http.ResponseWriter) {
 	buffer = bytes.Buffer{}
 
 	var fileBlock structs.FileBlock
-	file.Seek(ToInt(sp.S_block_start[:])+64, os.SEEK_SET)
+	//file.Seek(ToInt(sp.S_block_start[:])+64, os.SEEK_SET)
 	copy(fileBlock.B_content[:], "1,G,root\n1,U,root,root,123\n")
 
 	binary.Write(&buffer, binary.BigEndian, &fileBlock)

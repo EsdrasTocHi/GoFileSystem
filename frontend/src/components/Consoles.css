@@ -1,0 +1,22 @@
+#btnExecute{
+    width: 20%;
+    margin-left: 5%;
+}
+
+#fileChooser{
+    width: 75%;
+}
+
+#btnExecute, #fileChooser{
+    float: left;
+}
+
+#txtCommand, #txtRes{
+    resize: none;
+    height: 225px;
+    width: 100%;
+}
+
+#txtRes{
+    margin-top: 10px;
+}
