@@ -412,6 +412,36 @@ func Mkfile(params []string, w http.ResponseWriter) {
 	fs.Mkfile(path, r, int64(s), cont, currentUser, activeSession, 664, w)
 }
 
+func Mkdir(params []string, w http.ResponseWriter) {
+	var path string = ""
+	r := false
+
+	for i := 0; i < len(params); i++ {
+		param := strings.Split(params[i], "=")
+		name := strings.ToLower(param[0])
+		if name == "-r" {
+			r = true
+			continue
+		}
+		value := param[1]
+		if name == "-path" {
+			path = Path(value, w)
+			if path == "" {
+				return
+			}
+		} else {
+			fs.WriteResponse(w, "$Error: "+strings.Trim(name, "-")+" is not a valid parameter")
+			return
+		}
+	}
+
+	if path == "" {
+		fs.WriteResponse(w, "$Error: PATH is a mandatory parameter")
+	}
+
+	fs.MkDir(path, r, currentUser, activeSession, 664, w)
+}
+
 func Rep(params []string, w http.ResponseWriter) {
 	var id string = ""
 	n := ""
@@ -492,6 +522,8 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 		Rmgrp(params, w)
 	} else if cmd == "mkfile" {
 		Mkfile(params, w)
+	} else if cmd == "mkdir" {
+		Mkdir(params, w)
 	} else if cmd == "rep" {
 		Rep(params, w)
 	} else {
