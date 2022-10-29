@@ -526,6 +526,8 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 		Mkdir(params, w)
 	} else if cmd == "rep" {
 		Rep(params, w)
+	} else if cmd == "pause" {
+		fs.WriteResponse(w, "\"========= PAUSE =========\"")
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}

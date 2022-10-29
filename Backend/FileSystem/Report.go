@@ -203,5 +203,81 @@ func Report(id string, name string, path string, partitions *[]structs.MountedPa
 
 	if strings.ToLower(name) == "tree" {
 		ReportTree(*mountedPartition, path, w)
+	} else if strings.ToLower(name) == "file" {
+		File(currentUser, ruta, path, w)
+	} else if strings.ToLower(name) == "sb" {
+		ReportSb(*mountedPartition, path)
 	}
+}
+
+func File(currentUser structs.Sesion, reportPath string, filePath string, w http.ResponseWriter) {
+	var mountedPartition *structs.MountedPartition
+	mountedPartition = &(currentUser.Mounted)
+	file, _ := os.OpenFile(mountedPartition.Path, os.O_RDWR, 0777)
+	defer file.Close()
+
+	var sp structs.SuperBlock
+	start := int64(0)
+	if mountedPartition.IsLogic {
+		start = ToInt(mountedPartition.LogicPar.Part_start[:])
+	} else {
+		start = ToInt(mountedPartition.Par.Part_start[:])
+	}
+
+	file.Seek(start, os.SEEK_SET)
+	ReadSuperBlock(&sp, file)
+
+	root := structs.Inode{}
+	aux := structs.Inode{}
+	file.Seek(ToInt(sp.S_inode_start[:]), os.SEEK_SET)
+	ReadInode(&root, file)
+	pointerOfFile := int64(0)
+	aux = SearchFile(file, root, SplithPath("users.txt"), ToInt(sp.S_inode_start[:]), ToInt(sp.S_block_start[:]), &pointerOfFile)
+	c := ReadFile(file, aux, ToInt(sp.S_inode_start[:]), ToInt(sp.S_block_start[:]), w)
+
+	finalContent := ""
+	aux = SearchFile(file, root, SplithPath(filePath), ToInt(sp.S_inode_start[:]), ToInt(sp.S_block_start[:]), &pointerOfFile)
+
+	if aux.I_type == 'n' {
+		WriteResponse(w, "$Error: file does not exist")
+		return
+	}
+
+	if GetPermission(aux, currentUser.Usr.Id, int64(GetGroupId(ToString(currentUser.Usr.Group[:]), c)), ToInt(aux.I_perm[:]), true, false, false) {
+		finalContent += ReadFile(file, aux, ToInt(sp.S_inode_start[:]), ToInt(sp.S_block_start[:]), w) + "\n"
+	} else {
+		WriteResponse(w, "$Error: You do not have permission to read "+filePath)
+		return
+	}
+
+	report := "digraph G{\nnode[shape = record];rankdir = LR;\nfile[label=\"" + filePath + "|" + finalContent + "\"];}"
+	SaveImageGV(reportPath, report)
+}
+
+func ReportSb(partition structs.MountedPartition, path string) {
+	file, _ := os.OpenFile(partition.Path, os.O_RDWR, 0777)
+	defer file.Close()
+	start := int64(0)
+	if partition.IsLogic {
+		start = ToInt(partition.LogicPar.Part_start[:])
+	} else {
+		start = ToInt(partition.Par.Part_start[:])
+	}
+
+	sb := structs.SuperBlock{}
+	file.Seek(start, os.SEEK_SET)
+	ReadSuperBlock(&sb, file)
+
+	report := ""
+	report += "digraph G {\n"
+	report += "    node[shape = record];rankdir = LR;\n"
+	report += "    \n"
+	report += "    superBlock[label=\"SuperBlock|{s_filesystem_type|" + strconv.Itoa(int(ToInt(sb.S_filesystem_type[:]))) + "}|{s_inodes_count|" + strconv.Itoa(int(ToInt(sb.S_inodes_count[:]))) + "}|\n"
+	report += "    {s_blocks_count|" + strconv.Itoa(int(ToInt(sb.S_blocks_count[:]))) + "}|{s_free_blocks_count|" + strconv.Itoa(int(ToInt(sb.S_free_blocks_count[:]))) + "}|{s_free_inodes_count|" + strconv.Itoa(int(ToInt(sb.S_free_inodes_count[:]))) + "}|\n"
+	report += "    {s_mtime|" + ToString(sb.S_mtime[:]) + "}|{s_mnt_count|" + strconv.Itoa(int(ToInt(sb.S_mnt_count[:]))) + "}|{s_magic|" + strconv.Itoa(int(ToInt(sb.S_magic[:]))) + "}|{s_inode_s|" + strconv.Itoa(int(ToInt(sb.S_inode_size[:]))) + "}|\n"
+	report += "    {s_block_s|" + strconv.Itoa(int(ToInt(sb.S_block_size[:]))) + "}|{s_first_ino|" + strconv.Itoa(int(ToInt(sb.S_first_ino[:]))) + "}|{s_first_blo|" + strconv.Itoa(int(ToInt(sb.S_first_blo[:]))) + "}|{s_bm_inode_start|" + strconv.Itoa(int(ToInt(sb.S_bm_inode_start[:]))) + "}|\n"
+	report += "    {s_bm_block_start|" + strconv.Itoa(int(ToInt(sb.S_bm_block_start[:]))) + "}|{s_inode_start|" + strconv.Itoa(int(ToInt(sb.S_inode_start[:]))) + "}|{s_block_start|" + strconv.Itoa(int(ToInt(sb.S_block_start[:]))) + "}\"];\n"
+	report += "}"
+
+	SaveImageGV(path, report)
 }

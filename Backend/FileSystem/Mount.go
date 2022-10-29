@@ -2,6 +2,8 @@ package filesystem
 
 import (
 	structs "Backend/Structures"
+	"bytes"
+	"encoding/binary"
 	"net/http"
 	"os"
 	"strconv"
@@ -71,7 +73,19 @@ func Mount(path string, nameString string, partitions *[]structs.MountedPartitio
 
 			file.Seek(ToInt(par.Part_start[:]), os.SEEK_SET)
 
-			//Codigo para aumentar contador de super bloque
+			sp := structs.SuperBlock{}
+			ReadSuperBlock(&sp, file)
+
+			if ToInt(sp.S_filesystem_type[:]) != 0 {
+				binary.BigEndian.PutUint64(sp.S_mnt_count[:], uint64(ToInt(sp.S_mnt_count[:])+1))
+				copy(sp.S_mtime[:], []byte(getDate()))
+
+				file.Seek(ToInt(par.Part_start[:]), os.SEEK_SET)
+				buffer := bytes.Buffer{}
+				binary.Write(&buffer, binary.BigEndian, &sp)
+				writeBinary(file, buffer.Bytes())
+			}
+
 			return
 		}
 
@@ -136,7 +150,18 @@ func Mount(path string, nameString string, partitions *[]structs.MountedPartitio
 
 		file.Seek(ToInt(logicPartitions[index].Part_start[:]), os.SEEK_SET)
 
-		//codigo para super bloque
+		sp := structs.SuperBlock{}
+		ReadSuperBlock(&sp, file)
+
+		if ToInt(sp.S_filesystem_type[:]) != 0 {
+			binary.BigEndian.PutUint64(sp.S_mnt_count[:], uint64(ToInt(sp.S_mnt_count[:])+1))
+			copy(sp.S_mtime[:], []byte(getDate()))
+
+			file.Seek(ToInt(logicPartitions[index].Part_start[:]), os.SEEK_SET)
+			buffer := bytes.Buffer{}
+			binary.Write(&buffer, binary.BigEndian, &sp)
+			writeBinary(file, buffer.Bytes())
+		}
 
 		*partitions = append(*partitions, newMount)
 		WriteResponse(w, "PATITION MOUNTED, ID -> "+newMount.Id)
