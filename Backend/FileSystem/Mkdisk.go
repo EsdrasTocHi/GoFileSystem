@@ -7,11 +7,20 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 )
 
 func MkDisk(size int, unit rune, fit rune, path string, w http.ResponseWriter) {
 	if !Exist(path) {
+
+		paux := RemoveFileName(path)
+
+		if paux != "" {
+			exec.Command("mkdir", "-p", paux).Run()
+			exec.Command("chmod", "-R", "777", paux).Run()
+		}
+
 		var tam int64
 		if unit == 'k' {
 			tam = int64(size * 1024)
