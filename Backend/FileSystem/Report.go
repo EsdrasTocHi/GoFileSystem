@@ -39,7 +39,7 @@ func RemoveFileName(path string) string {
 	return p
 }
 
-func SaveImageGV(file_path string, content string) {
+func SaveImageGV(file_path string, content string, w http.ResponseWriter) {
 	paux := RemoveFileName(file_path)
 
 	if paux != "" {
@@ -52,6 +52,7 @@ func SaveImageGV(file_path string, content string) {
 	dot, _ = os.OpenFile("temp.dot", os.O_RDWR, 0777)
 	dot.WriteString(content)
 	exec.Command("dot", "-T", GetExtension(file_path), "temp.dot", "-o", file_path).Run()
+	WriteResponse(w, "REPORT COMPLETED")
 }
 
 func ReportInode(inode structs.Inode, nodes *string, edges *string, lastInode int64, actualInode int64) {
@@ -183,7 +184,7 @@ func ReportTree(partition structs.MountedPartition, path string, w http.Response
 
 	content := "digraph G {node[shape = record];rankdir = LR;\n" + nodes + edges + "}"
 
-	SaveImageGV(path, content)
+	SaveImageGV(path, content, w)
 }
 
 func Report(id string, name string, path string, partitions *[]structs.MountedPartition, ruta string, currentUser structs.Sesion, w http.ResponseWriter) {
@@ -206,7 +207,7 @@ func Report(id string, name string, path string, partitions *[]structs.MountedPa
 	} else if strings.ToLower(name) == "file" {
 		File(currentUser, ruta, path, w)
 	} else if strings.ToLower(name) == "sb" {
-		ReportSb(*mountedPartition, path)
+		ReportSb(*mountedPartition, path, w)
 	}
 }
 
@@ -251,10 +252,10 @@ func File(currentUser structs.Sesion, reportPath string, filePath string, w http
 	}
 
 	report := "digraph G{\nnode[shape = record];rankdir = LR;\nfile[label=\"" + filePath + "|" + finalContent + "\"];}"
-	SaveImageGV(reportPath, report)
+	SaveImageGV(reportPath, report, w)
 }
 
-func ReportSb(partition structs.MountedPartition, path string) {
+func ReportSb(partition structs.MountedPartition, path string, w http.ResponseWriter) {
 	file, _ := os.OpenFile(partition.Path, os.O_RDWR, 0777)
 	defer file.Close()
 	start := int64(0)
@@ -279,5 +280,5 @@ func ReportSb(partition structs.MountedPartition, path string) {
 	report += "    {s_bm_block_start|" + strconv.Itoa(int(ToInt(sb.S_bm_block_start[:]))) + "}|{s_inode_start|" + strconv.Itoa(int(ToInt(sb.S_inode_start[:]))) + "}|{s_block_start|" + strconv.Itoa(int(ToInt(sb.S_block_start[:]))) + "}\"];\n"
 	report += "}"
 
-	SaveImageGV(path, report)
+	SaveImageGV(path, report, w)
 }
