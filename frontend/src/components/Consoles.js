@@ -83,30 +83,6 @@ class Console extends React.Component{
             }
         }
 
-        /*lines.forEach(async line => {
-            finalContent += line+"\n"
-            line = removeComment(line)
-            line = line.trim()
-
-            if (line !== ""){
-                const comm = {
-                    command : line
-                }
-    
-                let requestPost = {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(comm),
-                  };
-                  const url = this.path+'/command';
-                 await fetch(url, requestPost)
-                    .then((response) => response.json())
-                    .then((data) => {
-                      cons += data.response +"\n";
-                    })
-            }
-        });*/
-
         this.setState({
             commands:finalContent,
             console : cons

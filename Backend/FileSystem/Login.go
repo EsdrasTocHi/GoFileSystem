@@ -45,7 +45,7 @@ func Authenticate(usr string, passw string, currentUser *structs.Sesion, content
 			if usr == user {
 				if pass == passw {
 					if id == 0 {
-						WriteResponse(w, "$Error: user does not exist")
+						WriteResponseAuthenticated(w, "$Error: user does not exist", true, true)
 						return false
 					}
 
@@ -57,19 +57,19 @@ func Authenticate(usr string, passw string, currentUser *structs.Sesion, content
 					copy(currentUser.Usr.Password[:], []byte(pass))
 					return true
 				}
-				WriteResponse(w, "$Error: incorrect password")
+				WriteResponseAuthenticated(w, "$Error: incorrect password", true, true)
 				return false
 			}
 		}
 	}
 
-	WriteResponse(w, "$Error: incorrect user")
+	WriteResponseAuthenticated(w, "$Error: incorrect user", true, false)
 	return false
 }
 
 func Login(usr string, passw string, id string, partitions *[]structs.MountedPartition, currentUser *structs.Sesion, activeSession *bool, w http.ResponseWriter) {
 	if *activeSession {
-		WriteResponse(w, "$Error: active session")
+		WriteResponseAuthenticated(w, "$Error: active session", true, true)
 		return
 	}
 
@@ -84,7 +84,7 @@ func Login(usr string, passw string, id string, partitions *[]structs.MountedPar
 	}
 
 	if i == len(*partitions) {
-		WriteResponse(w, "$Error: "+id+" is not mounted")
+		WriteResponseAuthenticated(w, "$Error: "+id+" is not mounted", true, true)
 		return
 	}
 
@@ -110,7 +110,7 @@ func Login(usr string, passw string, id string, partitions *[]structs.MountedPar
 	root = SearchFile(file, root, SplithPath("users.txt"), ToInt(sp.S_inode_start[:]), ToInt(sp.S_block_start[:]), &p)
 
 	if root.I_type == 'n' {
-		WriteResponse(w, "$Error: users.txt does not exist")
+		WriteResponseAuthenticated(w, "$Error: users.txt does not exist", true, true)
 		return
 	}
 
@@ -123,6 +123,6 @@ func Login(usr string, passw string, id string, partitions *[]structs.MountedPar
 
 	if *activeSession {
 		currentUser.Mounted = *mountedPartition
-		WriteResponse(w, "WELCOME "+usr+"!!")
+		WriteResponseAuthenticated(w, "WELCOME "+usr+"!!", true, false)
 	}
 }
