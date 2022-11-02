@@ -62,10 +62,12 @@ func Exist(path string) bool {
 }
 
 func WriteResponse(w http.ResponseWriter, content string) {
+	fmt.Println(content)
 	fmt.Fprintln(w, "{\n\"response\" : \""+content+"\",\n\"authenticated\":false, \"error\":false}")
 }
 
 func WriteResponseAuthenticated(w http.ResponseWriter, content string, authenticated bool, error bool) {
+	fmt.Println(content)
 	fmt.Fprintln(w, "{\n\"response\" : \""+content+"\",\n\"authenticated\":"+strconv.FormatBool(authenticated)+",\n\"error\":"+strconv.FormatBool(error)+"}")
 }
 

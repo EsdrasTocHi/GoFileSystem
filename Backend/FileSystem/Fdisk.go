@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"time"
 )
 
 func FDisk(size int, unit rune, path string, tyype rune, fit rune, name string, w http.ResponseWriter) {
@@ -223,17 +222,16 @@ func FDisk(size int, unit rune, path string, tyype rune, fit rune, name string, 
 				tam = int64(size)
 			}
 
-			spaceNeeded := tam + structs.SizeOfEbr
+			spaceNeeded := tam + int64(binary.Size(ebr))
 
-			if ToInt(ebr.Part_start[:]) == 0 && ToInt(ebr.Part_next[:]) == 0 {
-				if ToInt(extendedPartition.Part_size[:]) > spaceNeeded {
-					var aux int64 = 1
-					binary.BigEndian.PutUint64(ebr.Part_start[:], uint64(ToInt(extendedPartition.Part_start[:])+structs.SizeOfEbr))
-					binary.BigEndian.PutUint64(ebr.Part_next[:], uint64(aux))
+			if ToInt(ebr.Part_start[:]) == 0 && ebr.Part_next == 0 {
+				if ToInt(extendedPartition.Part_size[:]) >= spaceNeeded {
+					binary.BigEndian.PutUint64(ebr.Part_start[:], uint64(ToInt(extendedPartition.Part_start[:])+int64(binary.Size(ebr))))
+					ebr.Part_next = -1
 					ebr.Part_fit = byte(fit)
 					binary.BigEndian.PutUint64(ebr.Part_size[:], uint64(tam))
 					ebr.Part_status = 'A'
-					for i := 0; i < 16; i++ {
+					for i := 0; i < len(name); i++ {
 						if i < len(name) {
 							ebr.Part_name[i] = name[i]
 							continue
@@ -261,17 +259,16 @@ func FDisk(size int, unit rune, path string, tyype rune, fit rune, name string, 
 				var ebr structs.Ebr
 				file.Seek(pointer, os.SEEK_SET)
 				ReadEbr(&ebr, file)
-				time.Sleep(3000 * time.Millisecond)
-				if ToInt(ebr.Part_next[:]) == 1 {
+				if ebr.Part_next == -1 {
 					availableSpace = append(availableSpace, (ToInt(extendedPartition.Part_start[:])+ToInt(extendedPartition.Part_size[:]))-(ToInt(ebr.Part_start[:])+ToInt(ebr.Part_size[:])))
 					partitions = append(partitions, ebr)
 					break
 				}
 
 				partitions = append(partitions, ebr)
-				availableSpace = append(availableSpace, ToInt(ebr.Part_next[:])-(ToInt(ebr.Part_start[:])+ToInt(ebr.Part_size[:])))
+				availableSpace = append(availableSpace, int64(ebr.Part_next)-(ToInt(ebr.Part_start[:])+ToInt(ebr.Part_size[:])))
 
-				pointer = ToInt(ebr.Part_next[:])
+				pointer = int64(ebr.Part_next)
 			}
 
 			if len(partitions) == 23 {
@@ -279,7 +276,7 @@ func FDisk(size int, unit rune, path string, tyype rune, fit rune, name string, 
 				return
 			}
 
-			index := 0
+			index := -1
 			if extendedPartition.Part_fit == 'b' {
 				actualSpace := -1
 				for i := 0; i < len(availableSpace); i++ {
@@ -328,12 +325,11 @@ func FDisk(size int, unit rune, path string, tyype rune, fit rune, name string, 
 				return
 			}
 
-			binary.BigEndian.PutUint64(ebr.Part_start[:],
-				uint64(ToInt(partitions[index].Part_start[:])+ToInt(partitions[index].Part_size[:])+structs.SizeOfEbr))
+			binary.BigEndian.PutUint64(ebr.Part_start[:], uint64(ToInt(partitions[index].Part_start[:])+ToInt(partitions[index].Part_size[:])+int64(binary.Size(ebr))))
 
-			binary.BigEndian.PutUint64(ebr.Part_next[:], uint64(1))
+			ebr.Part_next = -1
 			if index < len(availableSpace)-1 {
-				binary.BigEndian.PutUint64(ebr.Part_next[:], uint64(ToInt(partitions[index].Part_next[:])))
+				ebr.Part_next = partitions[index].Part_next
 			}
 			ebr.Part_fit = byte(fit)
 			binary.BigEndian.PutUint64(ebr.Part_size[:], uint64(tam))
@@ -342,15 +338,15 @@ func FDisk(size int, unit rune, path string, tyype rune, fit rune, name string, 
 				ebr.Part_name[i] = name[i]
 			}
 
-			binary.BigEndian.PutUint64(partitions[index].Part_next[:], uint64(ToInt(ebr.Part_start[:])-structs.SizeOfEbr))
+			partitions[index].Part_next = int32(ToInt(ebr.Part_start[:]) - int64(binary.Size(ebr)))
 
-			file.Seek(ToInt(partitions[index].Part_start[:])-structs.SizeOfEbr, os.SEEK_SET)
+			file.Seek(ToInt(partitions[index].Part_start[:])-int64(binary.Size(ebr)), os.SEEK_SET)
 			var buffer bytes.Buffer
 			binary.Write(&buffer, binary.BigEndian, &(partitions[index]))
 			writeBinary(file, buffer.Bytes())
 
 			var buffer2 bytes.Buffer
-			file.Seek(ToInt(ebr.Part_start[:])-structs.SizeOfEbr, os.SEEK_SET)
+			file.Seek(ToInt(ebr.Part_start[:])-int64(binary.Size(ebr)), os.SEEK_SET)
 			binary.Write(&buffer2, binary.BigEndian, &ebr)
 			writeBinary(file, buffer2.Bytes())
 

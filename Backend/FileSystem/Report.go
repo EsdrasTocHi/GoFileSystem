@@ -39,6 +39,23 @@ func RemoveFileName(path string) string {
 	return p
 }
 
+func RemoveFileExtension(path string) string {
+	p := ""
+	add := false
+	for i := len(path) - 1; i >= 0; i-- {
+		if !add {
+			if path[i] == '.' {
+				add = true
+			}
+			continue
+		}
+
+		p = string(path[i]) + p
+	}
+
+	return p
+}
+
 func SaveImageGV(file_path string, content string, w http.ResponseWriter) {
 	paux := RemoveFileName(file_path)
 
@@ -47,11 +64,13 @@ func SaveImageGV(file_path string, content string, w http.ResponseWriter) {
 		exec.Command("chmod", "-R", "777", paux).Run()
 	}
 
-	dot, _ := os.OpenFile("temp.dot", os.O_CREATE, 0777)
+	n := RemoveFileExtension(file_path) + ".dot"
+
+	dot, _ := os.OpenFile(n, os.O_CREATE, 0777)
 	dot.Close()
-	dot, _ = os.OpenFile("temp.dot", os.O_RDWR, 0777)
+	dot, _ = os.OpenFile(n, os.O_RDWR, 0777)
 	dot.WriteString(content)
-	exec.Command("dot", "-T", GetExtension(file_path), "temp.dot", "-o", file_path).Run()
+	exec.Command("dot", "-T", GetExtension(file_path), n, "-o", file_path).Run()
 	WriteResponse(w, "REPORT COMPLETED")
 }
 
@@ -147,7 +166,10 @@ func ReportDirBlock(db structs.Dirblock, link string, pointer int64, nodes *stri
 			}
 			if db.B_content[i].B_inodo != -1 {
 				aux := structs.Inode{}
-				file.Seek(istart+(int64(binary.Size(aux))*int64(db.B_content[i].B_inodo)), os.SEEK_SET)
+				_, err := file.Seek(istart+(int64(binary.Size(aux))*int64(db.B_content[i].B_inodo)), os.SEEK_SET)
+				if err != nil {
+					return
+				}
 				ReadInode(&aux, file)
 
 				link := "b" + strconv.Itoa(int(pointer)) + ":<b" + strconv.Itoa(i+1) + ">"
@@ -179,7 +201,6 @@ func ReportTree(partition structs.MountedPartition, path string, w http.Response
 	ReadInode(&root, file)
 	nodes := ""
 	edges := ""
-
 	ReportInodeTree(root, "", 0, &nodes, &edges, ToInt(sb.S_inode_start[:]), ToInt(sb.S_block_start[:]), file)
 
 	content := "digraph G {node[shape = record];rankdir = LR;\n" + nodes + edges + "}"
@@ -205,7 +226,7 @@ func Report(id string, name string, path string, partitions *[]structs.MountedPa
 	if strings.ToLower(name) == "tree" {
 		ReportTree(*mountedPartition, path, w)
 	} else if strings.ToLower(name) == "file" {
-		File(currentUser, ruta, path, w)
+		File(currentUser, path, ruta, w)
 	} else if strings.ToLower(name) == "sb" {
 		ReportSb(*mountedPartition, path, w)
 	}
@@ -240,7 +261,7 @@ func File(currentUser structs.Sesion, reportPath string, filePath string, w http
 	aux = SearchFile(file, root, SplithPath(filePath), ToInt(sp.S_inode_start[:]), ToInt(sp.S_block_start[:]), &pointerOfFile)
 
 	if aux.I_type == 'n' {
-		WriteResponse(w, "$Error: file does not exist")
+		WriteResponse(w, "$Error: "+filePath+" does not exist")
 		return
 	}
 

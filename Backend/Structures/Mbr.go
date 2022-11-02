@@ -1,7 +1,5 @@
 package structures
 
-var SizeOfMbr int64 = 173
-
 type Mbr struct {
 	Mbr_tamano         [8]byte
 	Mbr_fecha_creacion [19]byte

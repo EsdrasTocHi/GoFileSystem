@@ -33,7 +33,7 @@ class Console extends React.Component{
             commands : ""
         }
 
-        this.path = "http://127.0.0.1:3030"
+        this.path = "http://3.144.197.243:3030"
 
         this.showFile.bind(this.showFile)
         this.execute.bind(this.execute)
@@ -74,12 +74,15 @@ class Console extends React.Component{
                     body: JSON.stringify(comm),
                   };
                   const url = this.path+'/command';
+                  try{
                  await fetch(url, requestPost)
                     .then((response) => response.json())
                     .then((data) => {
                         console.log(data);
                         cons += data.response +"\n";
                     })
+                    .catch((err)=>console.log(err))
+                }catch{}
             }
         }
 

@@ -37,11 +37,11 @@ func MkDisk(size int, unit rune, fit rune, path string, w http.ResponseWriter) {
 			return
 		}
 
-		var temporal int8 = 0
+		temporal := make([]int8, 1024)
 		var buffer bytes.Buffer
 		binary.Write(&buffer, binary.BigEndian, &temporal)
 
-		for i := 0; i < size; i++ {
+		for i := int64(0); i < tam; i += 1024 {
 			if !writeBinary(file, buffer.Bytes()) {
 				return
 			}

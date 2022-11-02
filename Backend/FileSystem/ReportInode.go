@@ -7,10 +7,10 @@ import (
 )
 
 func ReportInodeTree(inode structs.Inode, link string, pointer int64, nodes *string, edges *string, istart int64, bstart int64, file *os.File) {
-	*nodes += "i" + strconv.Itoa(int(pointer)) + "[label=\"Inode " + strconv.Itoa(int(pointer))	+"| {i_uid|" + strconv.Itoa(int(ToInt(inode.I_uid[:]))) + "}|{i_gid|" + strconv.Itoa(int(ToInt(inode.I_gid[:]))) + "}|{i_s|"+strconv.Itoa(int(ToInt(inode.I_size[:]))) + "}|\n"
-	*nodes += "    {i_atime|" + ToString(inode.I_atime[:]) + "}|{i_ctime|" + ToString(inode.I_ctime[:])+"}|{i_mtime|" + ToString(inode.I_mtime[:]) + "}|\n"
+	*nodes += "i" + strconv.Itoa(int(pointer)) + "[label=\"Inode " + strconv.Itoa(int(pointer)) + "| {i_uid|" + strconv.Itoa(int(ToInt(inode.I_uid[:]))) + "}|{i_gid|" + strconv.Itoa(int(ToInt(inode.I_gid[:]))) + "}|{i_s|" + strconv.Itoa(int(ToInt(inode.I_size[:]))) + "}|\n"
+	*nodes += "    {i_atime|" + ToString(inode.I_atime[:]) + "}|{i_ctime|" + ToString(inode.I_ctime[:]) + "}|{i_mtime|" + ToString(inode.I_mtime[:]) + "}|\n"
 	for i := 1; i < 17; i++ {
-		*nodes += "    {i_block " + strconv.Itoa(i) + "|<i" + strconv.Itoa(i) + "> " + strconv.Itoa(int(inode.I_block[i-1]))+"}|\n"
+		*nodes += "    {i_block " + strconv.Itoa(i) + "|<i" + strconv.Itoa(i) + "> " + strconv.Itoa(int(inode.I_block[i-1])) + "}|\n"
 	}
 	*nodes += "{i_type|"
 	*nodes += string(inode.I_type)

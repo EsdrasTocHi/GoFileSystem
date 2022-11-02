@@ -1,7 +1,5 @@
 package structures
 
-var SizeOfInode int64 = 105
-
 type Inode struct {
 	I_uid   [8]byte
 	I_gid   [8]byte

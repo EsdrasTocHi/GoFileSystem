@@ -1,7 +1,5 @@
 package structures
 
-var SizeOfSuperBlock int64 = 139
-
 type SuperBlock struct {
 	S_filesystem_type   [8]byte
 	S_inodes_count      [8]byte

@@ -15,7 +15,7 @@ class Login extends React.Component{
             active : false
         }
 
-        this.path = "http://127.0.0.1:3030"
+        this.path = "http://3.144.197.243:3030"
 
         this.handleInputChange.bind(this.handleInputChange)
         this.login.bind(this.login)

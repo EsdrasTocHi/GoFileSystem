@@ -39,7 +39,7 @@ func ext2(mountedPartition *structs.MountedPartition, w http.ResponseWriter) {
 	}
 
 	var sp structs.SuperBlock
-	num_structures := math.Floor(float64((sizeOfPartition - structs.SizeOfSuperBlock) / (4 + structs.SizeOfInode + 3*64)))
+	num_structures := math.Floor(float64((sizeOfPartition - int64(binary.Size(sp))) / (4 + int64(binary.Size(structs.Inode{})) + 3*64)))
 	num_blocks := 3 * num_structures
 
 	binary.BigEndian.PutUint64(sp.S_filesystem_type[:], uint64(2))

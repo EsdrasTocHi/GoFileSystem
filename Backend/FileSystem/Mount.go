@@ -25,19 +25,19 @@ func Mount(path string, nameString string, partitions *[]structs.MountedPartitio
 		if strings.ToLower(ToString(mbr.Mbr_partition_1.Part_name[:])) == strings.ToLower(nameString) {
 			par = &mbr.Mbr_partition_1
 			found = true
-			partitionNumber = 'A'
+			partitionNumber = 'a'
 		} else if strings.ToLower(ToString(mbr.Mbr_partition_2.Part_name[:])) == strings.ToLower(nameString) {
 			par = &mbr.Mbr_partition_2
 			found = true
-			partitionNumber = 'B'
+			partitionNumber = 'b'
 		} else if strings.ToLower(ToString(mbr.Mbr_partition_3.Part_name[:])) == strings.ToLower(nameString) {
 			par = &mbr.Mbr_partition_3
 			found = true
-			partitionNumber = 'C'
+			partitionNumber = 'c'
 		} else if strings.ToLower(ToString(mbr.Mbr_partition_4.Part_name[:])) == strings.ToLower(nameString) {
 			par = &mbr.Mbr_partition_4
 			found = true
-			partitionNumber = 'D'
+			partitionNumber = 'd'
 		}
 
 		numberOfPartitions := 0
@@ -106,7 +106,7 @@ func Mount(path string, nameString string, partitions *[]structs.MountedPartitio
 		file.Seek(ToInt(par.Part_start[:]), os.SEEK_SET)
 		ReadEbr(&ebr, file)
 
-		if ToInt(ebr.Part_start[:]) == 0 && ToInt(ebr.Part_next[:]) == 0 {
+		if ToInt(ebr.Part_start[:]) == 0 && ebr.Part_next == 0 {
 			WriteResponse(w, "$Error: the partition doesn't exist")
 			return
 		}
@@ -127,13 +127,13 @@ func Mount(path string, nameString string, partitions *[]structs.MountedPartitio
 			}
 
 			numberOfPartitions++
-			if ToInt(ebr.Part_next[:]) == 1 {
+			if ebr.Part_next == -1 {
 				logicPartitions = append(logicPartitions, ebr)
 				break
 			}
 
 			logicPartitions = append(logicPartitions, ebr)
-			pointer = ToInt(ebr.Part_next[:])
+			pointer = int64(ebr.Part_next)
 		}
 
 		if !found {
@@ -146,7 +146,7 @@ func Mount(path string, nameString string, partitions *[]structs.MountedPartitio
 		newMount.IsLogic = true
 		newMount.Path = path
 		(*number)++
-		newMount.Id = "73" + strconv.Itoa(*number) + string(byte(64+numberOfPartitions))
+		newMount.Id = "73" + strconv.Itoa(*number) + string(byte(96+*number))
 
 		file.Seek(ToInt(logicPartitions[index].Part_start[:]), os.SEEK_SET)
 

@@ -1,7 +1,5 @@
 package structures
 
-var SizeOfPartition int64 = 35
-
 type Partition struct {
 	Part_status byte
 	Part_type   byte

@@ -419,7 +419,7 @@ func Mkdir(params []string, w http.ResponseWriter) {
 	for i := 0; i < len(params); i++ {
 		param := strings.Split(params[i], "=")
 		name := strings.ToLower(param[0])
-		if name == "-r" {
+		if name == "-p" {
 			r = true
 			continue
 		}
@@ -527,7 +527,7 @@ func ReadCommand(cmd string, w http.ResponseWriter) {
 	} else if cmd == "rep" {
 		Rep(params, w)
 	} else if cmd == "pause" {
-		fs.WriteResponse(w, "\"========= PAUSE =========\"")
+		fs.WriteResponse(w, "========= PAUSE =========")
 	} else {
 		fs.WriteResponse(w, "$Error: "+cmd+" command not recognized")
 	}

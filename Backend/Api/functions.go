@@ -27,6 +27,7 @@ func ReadCommand(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(body, &data)
 
 	if val, ok := data["command"]; ok {
+		fmt.Println(val)
 		reader.ReadCommand(val, w)
 	} else {
 		fs.WriteResponse(w, "$Error: something went wrong")
