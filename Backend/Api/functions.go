@@ -33,3 +33,8 @@ func ReadCommand(w http.ResponseWriter, r *http.Request) {
 		fs.WriteResponse(w, "$Error: something went wrong")
 	}
 }
+
+func kafka(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+	fmt.Println(string(body))
+}
